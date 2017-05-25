@@ -14,9 +14,25 @@ var io = socketIO(server)
 
 io.on('connection', (socket) => {
     console.log('new user conected')
+
+
+
+    socket.emit('newMessage', {
+        from: 'alvaro@example.com',
+        text: 'hello from newMessage in the server',
+        createdAt: 123
+    })
+
+    
+
     socket.on('disconnect', () => {
         console.log("a socket is Disconnected")
     })
+
+    socket.on('createMessage', (data) => {
+        console.log('createMessage got from the client.', data)
+    })
+
 })
 
 
