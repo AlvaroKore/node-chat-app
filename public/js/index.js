@@ -4,7 +4,7 @@ socket.on('connect', function ()  {
     console.log('Connected to server')
 
 
-    
+
 
 
 })
@@ -16,5 +16,5 @@ socket.on('disconnect', function  () {
 
 
 socket.on('newMessage', function (data){
-    console.log("newMeesage get from server:" , data)
+    console.log("newMessage" , data)
 })
