@@ -9,6 +9,8 @@ const publicPath = path.join(__dirname, '../public')
 const {generateMessage, generateLocationMessage} = require('./utils/message')
 const {isRealString} = require('./utils/validation')
 const {Users}  = require('./utils/users')
+const {equalsIgnoreCase} = require ('./utils/equals-ignore-case')
+
 
 const port = process.env.PORT || 3000
 
@@ -16,6 +18,8 @@ var app = express()
 var server = http.createServer(app)
 var io = socketIO(server)
 var users = new Users()
+
+var rooms = []
 
 io.on('connection', (socket) => {
     console.log('new user conected')
@@ -40,11 +44,20 @@ io.on('connection', (socket) => {
             return callback('name and room name are required')
         }
 
-        socket.join(params.room)
-        users.removeUser(socket.id)
-        users.addUser(socket.id, params.name, params.room)
+        let room = rooms.find((room) => {
+            return equalsIgnoreCase(room, params.room)
+        })
+        if(!room){
+            rooms.push(params.room)
+            io.emit('updateRoomList', rooms)
+        }
 
-        io.to(params.room).emit('updateUserList', users.getUserList(params.room))
+        socket.join(room)
+        users.removeUser(socket.id)
+        users.addUser(socket.id, params.name, room)
+
+        io.to(room).emit('updateUserList', users.getUserList(room))
+
 
         // socket.leave('some room')
 
@@ -53,7 +66,7 @@ io.on('connection', (socket) => {
         // socket.emit
         socket.emit("newMessage", generateMessage('Admin', 'Welcome to the chat app'))
 
-        socket.broadcast.to(params.room).emit('newMessage', generateMessage('Admin', `${params.name} has Joined`))
+        socket.broadcast.to(room).emit('newMessage', generateMessage('Admin', `${params.name} has Joined`))
 
         callback()
     })
