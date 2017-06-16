@@ -9,6 +9,7 @@ const publicPath = path.join(__dirname, '../public')
 const {generateMessage, generateLocationMessage} = require('./utils/message')
 const {isRealString} = require('./utils/validation')
 const {Users}  = require('./utils/users')
+const {Rooms} = require('./utils/rooms')
 const {equalsIgnoreCase} = require ('./utils/equals-ignore-case')
 
 
@@ -18,54 +19,56 @@ var app = express()
 var server = http.createServer(app)
 var io = socketIO(server)
 var users = new Users()
+var rooms = new Rooms()
 
-var rooms = []
+
 
 io.on('connection', (socket) => {
     console.log('new user conected')
-
-
+    socket.emit('updateRoomList', rooms.rooms)
 
     socket.on('disconnect', () => {
         var user = users.removeUser(socket.id)
 
         if (user) {
+            if(users.getUserList(user.room).length === 0) {
+                rooms.removeRoom(user.room)
+                io.emit('updateRoomList', rooms.rooms)
+            }
+
             io.to(user.room).emit('updateUserList', users.getUserList(user.room))
-
             io.to(user.room).emit('newMessage', generateMessage('Admin', `${user.name} has left`))
-
         }
 
         console.log("a socket is Disconnected")
     })
 
     socket.on('join' , (params, callback) => {
+        console.log('join')
         if (!isRealString(params.name) && !isRealString(params.room)) {
             return callback('name and room name are required')
         }
 
-        let room = rooms.find((room) => {
-            return equalsIgnoreCase(room, params.room)
-        })
-        if(!room){
-            rooms.push(params.room)
-            io.emit('updateRoomList', rooms)
+        if (users.existName(params.name)) {
+            return callback('userName is already taken')
         }
 
-        socket.join(room)
-        users.removeUser(socket.id)
+        let room = rooms.rooms.find ((room) => {
+            return equalsIgnoreCase (room, params.room)
+        })
+
+        if (!room) {
+            room = params.room
+            rooms.addRoom(room)
+            io.emit('updateRoomList', rooms.rooms)
+        }
+
+        socket.join( room )
+        users.removeUser( socket.id )
         users.addUser(socket.id, params.name, room)
 
         io.to(room).emit('updateUserList', users.getUserList(room))
-
-
-        // socket.leave('some room')
-
-        // io.emit -> io.to('some room').emit
-        // socket.broadcast.emit -> socket.broadcast.to('some romm').emit
-        // socket.emit
         socket.emit("newMessage", generateMessage('Admin', 'Welcome to the chat app'))
-
         socket.broadcast.to(room).emit('newMessage', generateMessage('Admin', `${params.name} has Joined`))
 
         callback()
@@ -84,7 +87,6 @@ io.on('connection', (socket) => {
         var user = users.getUser(socket.id)
         if(user){
             io.to(user.room).emit('newLocationMessage', generateLocationMessage(user.name, coords.latitude, coords.longitude))
-
         }
     })
 
@@ -92,12 +94,6 @@ io.on('connection', (socket) => {
 
 
 app.use(express.static(publicPath))
-
-
-// app.get('/', (req, res) => {
-//     res.render('index')
-// })
-
 server.listen(port, () => {
     console.log(`server running on port ${port}`)
 })

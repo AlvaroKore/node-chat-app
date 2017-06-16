@@ -25,9 +25,6 @@ class Users {
 
     getUser(id) {
         return  this.users.filter((user) => user.id === id)[0]
-
-
-        
     }
 
     getUserList(room) {
@@ -38,6 +35,10 @@ class Users {
 
         return namesArray
 
+    }
+
+    existName(name){
+        return this.users.find((user) =>  user.name === name )
     }
 }
 
